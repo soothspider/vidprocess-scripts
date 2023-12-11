@@ -57,3 +57,4 @@ for ((i = 0; i < ${#files[@]}; i++)); do
 	echo "Completed $(date) --> [${model}] $file"
 done
 
+[ ${#files[@]} -gt 1 ] && printf "\nCaptions attempted:\n----\n" && printf '> %s\n' "${files[@]}"

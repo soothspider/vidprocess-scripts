@@ -23,21 +23,40 @@
 # (Simplified by convention, but you must know the convention.)
 # ---
 
+black_colorKey="000000"
+black_similarity="0.28"
+darkgrey_colorKey="111111"
+darkgrey_similarity="0.02"
+
+default_targetDir="composed"
+default_colorKey="$darkgrey_colorKey"
+default_similarity="$darkgrey_similarity"
+
+targetDir="$default_targetDir"
+colorKey="$default_colorKey"
+similarity="$default_similarity"
+
 # Reset in case getopts has been used previously in the shell.
 OPTIND=1
 
-targetDir="composed"
-
-while getopts "h?t:" opt; do
+while getopts "h?t:k:s:" opt; do
   case "$opt" in
     h|\?)
-      echo "Usage: $(basename $0) [-h] [-t <folder>] <file> <file-chat> [<file> <file-chat> ...]"
+      echo "Usage: $(basename $0) [-h] [-t <folder>] [-k <color-key>] <file> <file-chat> [<file> <file-chat> ...]"
       echo ""
+      echo "<folder> defaults to '${default_targetDir}'. If folder does not exist, it will error out."
       echo "<file> must start with an ID. <file-chat> must start with the same ID followed by \" [Chat]\"."
       echo "e.g.  $(basename $0) \"1234 - stream.mp4\" \"1234 [Chat] - stream.mkv\""
+      echo ""
+      echo "<color-key> should be in the format RRGGBB or RRGGBBAA in hexidecimal. It defaults to ${default_colorKey}."
+      echo "e.g.  $(basename $0) -k 00AABB"
       exit 0
       ;;
     t)  targetDir="${OPTARG}"
+      ;;
+    k)  colorKey="${OPTARG}"
+      ;;
+    s)  similarity="${OPTARG}"
       ;;
   esac
 done
@@ -77,7 +96,7 @@ for ((i = 0; i < ${#files[@]}; i++)); do
   fi
 
 	name="${base%.*}"
-	target="${targetDir}/${name}.composed.mp4"
+	target="$(echo "${targetDir}" | sed 's:/*$::')/${name}.composed.mp4"
 
   echo "Proceding to overlay <overlay> ontop of <base> for stream $id."
   echo "base: $base"
@@ -88,8 +107,8 @@ for ((i = 0; i < ${#files[@]}; i++)); do
   echo
 
   echo Start $(date)
-  time ffmpeg -i "${base}" -i "${overlay}" -c:a copy -c:v h264_nvenc -filter_complex '[1:v]colorkey=0x000000:0.28[ckout];[0:v][ckout]overlay=1219[out]' -map 0:a:0 -map '[out]' "${target}"
-	echo Completed $(date)
+  time ffmpeg -i "${base}" -i "${overlay}" -c:a copy -c:v h264_nvenc -filter_complex "[1:v]colorkey=0x${colorKey}:${similarity}[ckout];[0:v][ckout]overlay=1219[out]" -map 0:a:0 -map '[out]' "${target}"
+	echo "Completed $(date) [colorKey:${colorKey} similarity:${similarity}] $target"
   echo 
 
   unset base

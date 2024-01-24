@@ -40,25 +40,25 @@ similarity="$default_similarity"
 OPTIND=1
 
 while getopts "h?t:k:s:" opt; do
-  case "$opt" in
-    h|\?)
-      echo "Usage: $(basename $0) [-h] [-t <folder>] [-k <color-key>] <file> <file-chat> [<file> <file-chat> ...]"
-      echo ""
-      echo "<folder> defaults to '${default_targetDir}'. If folder does not exist, it will error out."
-      echo "<file> must start with an ID. <file-chat> must start with the same ID followed by \" [Chat]\"."
-      echo "e.g.  $(basename $0) \"1234 - stream.mp4\" \"1234 [Chat] - stream.mkv\""
-      echo ""
-      echo "<color-key> should be in the format RRGGBB or RRGGBBAA in hexidecimal. It defaults to ${default_colorKey}."
-      echo "e.g.  $(basename $0) -k 00AABB"
-      exit 0
-      ;;
-    t)  targetDir="${OPTARG}"
-      ;;
-    k)  colorKey="${OPTARG}"
-      ;;
-    s)  similarity="${OPTARG}"
-      ;;
-  esac
+	case "$opt" in
+		h|\?)
+			echo "Usage: $(basename $0) [-h] [-t <folder>] [-k <color-key>] <file> <file-chat> [<file> <file-chat> ...]"
+			echo ""
+			echo "<folder> defaults to '${default_targetDir}'. If folder does not exist, it will error out."
+			echo "<file> must start with an ID. <file-chat> must start with the same ID followed by \" [Chat]\"."
+			echo "e.g.  $(basename $0) \"1234 - stream.mp4\" \"1234 [Chat] - stream.mkv\""
+			echo ""
+			echo "<color-key> should be in the format RRGGBB or RRGGBBAA in hexidecimal. It defaults to ${default_colorKey}."
+			echo "e.g.  $(basename $0) -k 00AABB"
+			exit 0
+			;;
+		t)  targetDir="${OPTARG}"
+			;;
+		k)  colorKey="${OPTARG}"
+			;;
+		s)  similarity="${OPTARG}"
+			;;
+	esac
 done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
@@ -78,40 +78,47 @@ echo Processing video files in order:
 printf "file: [%s]\n" "${files[@]}"
 echo
 
+times=()
+composed=()
 for ((i = 0; i < ${#files[@]}; i++)); do
-  [ -z "${base}" ] && base="${files[$i]}" && continue
-  [ -z "${overlay}" ] && overlay="${files[$i]}"
+	[ -z "${base}" ] && base="${files[$i]}" && continue
+	[ -z "${overlay}" ] && overlay="${files[$i]}"
 
-  # Check to make sure base and overlay agree (e.g. related to same stream).
-  # If you need to change how <file> and <file-chat> formats are handled, these are the relevant 2 lines.
-  id=$(cut -d' ' -f1 <<< "$base")
-  if [[ ! "${overlay}" =~ .*"${id} ["[Cc]"hat]".* ]]; then
-    echo "!!! Base and overlay do not seem to be part of the same stream. Skipping..."
-    echo "base: $base"
-    echo "overlay: $overlay"
-    echo 
-    unset base
-    unset overlay
-    continue
-  fi
+	# Check to make sure base and overlay agree (e.g. related to same stream).
+	# If you need to change how <file> and <file-chat> formats are handled, these are the relevant 2 lines.
+	id=$(cut -d' ' -f1 <<< "$base")
+	if [[ ! "${overlay}" =~ .*"${id} ["[Cc]"hat]".* ]]; then
+		echo "!!! Base and overlay do not seem to be part of the same stream. Skipping..."
+		echo "base: $base"
+		echo "overlay: $overlay"
+		echo 
+		unset base
+		unset overlay
+		continue
+	fi
 
 	name="${base%.*}"
 	target="$(echo "${targetDir}" | sed 's:/*$::')/${name}.composed.mp4"
 
-  echo "Proceding to overlay <overlay> ontop of <base> for stream $id."
-  echo "base: $base"
-  echo "overlay: $overlay"
-  echo "---------"
-  echo "target: $target"
-  echo "---------"
-  echo
+	echo "Proceding to overlay <overlay> ontop of <base> for stream $id."
+	echo "base: $base"
+	echo "overlay: $overlay"
+	echo "---------"
+	echo "target: $target"
+	echo "---------"
+	echo
+	composed+=("$target")
 
-  echo Start $(date)
-  time ffmpeg -i "${base}" -i "${overlay}" -c:a copy -c:v h264_nvenc -filter_complex "[1:v]colorkey=0x${colorKey}:${similarity}[ckout];[0:v][ckout]overlay=1219[out]" -map 0:a:0 -map '[out]' "${target}"
+	echo Start $(date)
+	start=$(date +%s)
+	time ffmpeg -i "${base}" -i "${overlay}" -c:a copy -c:v h264_nvenc -filter_complex "[1:v]colorkey=0x${colorKey}:${similarity}[ckout];[0:v][ckout]overlay=1219[out]" -map 0:a:0 -map '[out]' "${target}"
+	end=$(date +%s)
+	times+=($((end-start)))
 	echo "Completed $(date) [colorKey:${colorKey} similarity:${similarity}] $target"
-  echo 
+	echo 
 
-  unset base
-  unset overlay
+	unset base
+	unset overlay
 done
 
+[ ${#composed[@]} -gt 1 ] && printf "\nCompositions attempted:\n----\n" && paste -d "" <(printf '> [%d s]\n' "${times[@]}") <(printf ' - %s\n' "${composed[@]}")

@@ -39,27 +39,27 @@ extra_params=""
 OPTIND=1
 
 while getopts "h?b:m:p:" opt; do
-  case "$opt" in
-    h|\?)
-      echo "WIP, needs completing"
-      echo "Usage: $(basename $0) [-h] [-b <colour>] [-m <colour>] <file.json> [<file.json> ...]"
-      echo ""
-      echo "<file.json> is a .json or .json.gz chat file."
-      echo "<colour> is 'RRGGBB' or 'AARRGGBB' in hexidecimal."
-      echo "The default background colour is ${default_background}. The default message colour is ${default_message}."
-      echo ""
-      echo "e.g.  $(basename $0) \"1234 - stream.json\" \"2345 - stream.json.gz\""
-      echo "e.g.  $(basename $0) -b FF000000 -m FFFFFF \"1234 - stream.mp4\" \"2345 - stream.mp4\""
-      echo "(for white message on black background)"
-      exit 0
-      ;;
-    b)  background="${OPTARG}"
-      ;;
-    m)  message="${OPTARG}"
-      ;;
-    p)  extra_params="${OPTARG}"
-      ;;
-  esac
+	case "$opt" in
+		h|\?)
+			echo "WIP, needs completing"
+			echo "Usage: $(basename $0) [-h] [-b <colour>] [-m <colour>] <file.json> [<file.json> ...]"
+			echo ""
+			echo "<file.json> is a .json or .json.gz chat file."
+			echo "<colour> is 'RRGGBB' or 'AARRGGBB' in hexidecimal."
+			echo "The default background colour is ${default_background}. The default message colour is ${default_message}."
+			echo ""
+			echo "e.g.  $(basename $0) \"1234 - stream.json\" \"2345 - stream.json.gz\""
+			echo "e.g.  $(basename $0) -b FF000000 -m FFFFFF \"1234 - stream.mp4\" \"2345 - stream.mp4\""
+			echo "(for white message on black background)"
+			exit 0
+			;;
+		b)  background="${OPTARG}"
+			;;
+		m)  message="${OPTARG}"
+			;;
+		p)  extra_params="${OPTARG}"
+			;;
+	esac
 done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
@@ -75,6 +75,7 @@ echo
 echo Rendering ${#files[@]} chats.
 echo
 
+times=()
 for ((i = 0; i < ${#files[@]}; i++)); do
 	file="${files[$i]}"
 	base="${file%.*}"
@@ -82,8 +83,11 @@ for ((i = 0; i < ${#files[@]}; i++)); do
 
 	echo "Generating chat [#${message} on #${background}]: $file"
 	echo Start $(date)
+	start=$(date +%s)
 	time twitchdownloadercli chatrender -i "${file}" -h 1080 -w 700 --background-color "#${background}" --message-color "#${message}" --font-size 24 ${extra_params} --outline --framerate 60 --output-args='-c:v hevc_nvenc -preset:v p4 -cq 21 -pix_fmt yuv420p "{save_path}"' -o "${target}"
+	end=$(date +%s)
+	times+=($((end-start)))
 	echo "Completed $(date) --> [#${message} on #${background}] $target"
 done
 
-[ ${#files[@]} -gt 1 ] && printf "\n\Chat renders attempted:\n----\n" && printf '> %s\n' "${files[@]}"
+[ ${#files[@]} -gt 1 ] && printf "\nChat renders attempted:\n----\n" && paste -d "" <(printf '> [%d s]\n' "${times[@]}") <(printf ' - %s\n' "${files[@]}")

@@ -30,6 +30,7 @@ for ((i = 0; i < ${#files[@]}; i++)); do
 
 	echo Extracting from: $file
 	echo to: $target
-	jq . "$file" | grep \"body\": | grep -i http | grep -shoP 'http.*?[" >]' | cut -d'"' -f1 | tee "$target"
+	# Filter body line from JSON pretty printer, grep for links, cut out important part, remove the trailing ")"" if any.
+	jq . "$file" | grep \"body\": | grep -i http | grep -shoP 'http.*?[" >]' | cut -d'"' -f1 | sed 's_)$__' | tee "$target"
 done
 

@@ -18,19 +18,25 @@
 OPTIND=1
 
 model="base.en"
+language="en"
 
 while getopts "h?m:" opt; do
 	case "$opt" in
 		h|\?)
-			echo "Usage: $(basename $0) [-h] [-m <model>] <file> [<file> ...]"
+			echo "Usage: $(basename $0) [-h] [-m <model>] [-l <language>] <file> [<file> ...]"
 			echo ""
-			echo "<model> is one of:  tiny.en,tiny,base.en,base,small.en,small,medium.en,medium,large-v1,large-v2,large"
+			echo "<model> is one of: tiny.en,tiny,base.en,base,small.en,small,medium.en,medium,large-v1,large-v2,large"
 			echo "<model> defaults to base.en"
+			echo "<language> examples: en,English,zh,Chinese,fr,French,ja,Japanese"
+			echo "<language> defaults to en"
 			echo "e.g.  $(basename $0) \"1234 - stream.mp4\" \"2345 - stream.mp4\""
 			echo "e.g.  $(basename $0) -m base.en \"1234 - stream.mp4\" \"2345 - stream.mp4\""
+			echo "e.g.  $(basename $0) -m large-v2 -l en \"1234 - stream.mp4\" \"2345 - stream.mp4\""
 			exit 0
 			;;
 		m)  model="${OPTARG}"
+			;;
+		l)  language="${OPTARG}"
 			;;
 	esac
 done

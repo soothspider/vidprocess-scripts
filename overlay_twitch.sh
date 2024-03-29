@@ -39,10 +39,12 @@ similarity="$default_similarity"
 # Reset in case getopts has been used previously in the shell.
 OPTIND=1
 
-while getopts "h?t:k:s:" opt; do
+while getopts "h?ft:k:s:" opt; do
 	case "$opt" in
 		h|\?)
-			echo "Usage: $(basename $0) [-h] [-t <folder>] [-k <color-key>] <file> <file-chat> [<file> <file-chat> ...]"
+			echo "Usage: $(basename $0) [-h] [-f] [-t <folder>] [-k <color-key>] <file> <file-chat> [<file> <file-chat> ...]"
+			echo ""
+			echo "-f Force processing even if <file> and <file-chat> files don't look like they match."
 			echo ""
 			echo "<folder> defaults to '${default_targetDir}'. If folder does not exist, it will error out."
 			echo "<file> must start with an ID. <file-chat> must start with the same ID followed by \" [Chat]\"."
@@ -51,6 +53,8 @@ while getopts "h?t:k:s:" opt; do
 			echo "<color-key> should be in the format RRGGBB or RRGGBBAA in hexidecimal. It defaults to ${default_colorKey}."
 			echo "e.g.  $(basename $0) -k 00AABB"
 			exit 0
+			;;
+		f)  forced=1
 			;;
 		t)  targetDir="${OPTARG}"
 			;;
@@ -87,7 +91,7 @@ for ((i = 0; i < ${#files[@]}; i++)); do
 	# Check to make sure base and overlay agree (e.g. related to same stream).
 	# If you need to change how <file> and <file-chat> formats are handled, these are the relevant 2 lines.
 	id=$(cut -d' ' -f1 <<< "$base")
-	if [[ ! "${overlay}" =~ .*"${id} ["[Cc]"hat]".* ]]; then
+	if [ -z ${forced+x} ] && [[ ! "${overlay}" =~ .*"${id} ["[Cc]"hat]".* ]]; then
 		echo "!!! Base and overlay do not seem to be part of the same stream. Skipping..."
 		echo "base: $base"
 		echo "overlay: $overlay"

@@ -94,6 +94,7 @@ def slugify_filename(filename):
     result = filename if filename else ""
     result = result.replace("?", "_")
     result = result.replace(":", "_")
+    result = result.replace("/", "_")
     return result
 
 def adjust_titles(metadata):

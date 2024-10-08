@@ -15,6 +15,7 @@ default_count=5
 import os, textwrap, getopt, sys, subprocess, ujson
 from dateutil.parser import parse as dateparser
 from prettytable import PrettyTable
+from pprint import pprint
 
 def print_usage(msg = None):
     scriptname = os.path.basename(sys.argv[0])
@@ -57,10 +58,12 @@ def get_twitch_user(login):
 
 def extract_userid(data):
     user_data = None
+    # pprint(data)
     try:
         user_data = ujson.loads(data)
-    except ujson.JSONDecodeError as e:
-            sys.stderr.write("Error parsing results: {}".format(e.msg))
+    except (ValueError, ujson.JSONDecodeError) as e:
+            sys.stderr.write("Error parsing results: {}".format(e))
+            sys.stderr.write("It's possible that your login token expired, try running: twitch token")
     return user_data["data"][0]["id"] if user_data and user_data["data"] and user_data["data"][0] else None
 
 def get_twitch_videos(user_id, count):

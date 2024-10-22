@@ -65,7 +65,11 @@ real_git_host() {
 }
 
 GIT_HOST=$(git config --local remote.${remote}.url | cut -d ":" -f1 | cut -d '@' -f2)
-GIT_REPO=$(git config --local remote.${remote}.url | cut -d ":" -f2 | rev | cut -d '.' -f2- | rev)
+GIT_REPO=$(git config --local remote.${remote}.url | cut -d ":" -f2)
+if [[ $GIT_REPO == *.git ]]; then
+  GIT_REPO="${GIT_REPO%.git}"
+fi
+
 GIT_REAL_HOST=$(real_git_host "$GIT_HOST")
 
 echo GIT_REPO: $GIT_REPO GIT_HOST: $GIT_HOST GIT_REAL_HOST: $GIT_REAL_HOST

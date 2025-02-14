@@ -100,6 +100,7 @@ def slugify_filename(filename):
 def adjust_titles(metadata):
     if metadata.channel.lower() == "GigaohmBiological".lower():
         metadata.title = metadata.title.replace("Gigaohm Biological High Resistance Low Noise Information ", "")
+        metadata.title = metadata.title.replace("Gigaohm Biological High Resistance Low Noise Info ", "")
         metadata.nicetitle = slugify_filename(metadata.title)
 
     return metadata

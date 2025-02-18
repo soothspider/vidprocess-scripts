@@ -3,33 +3,59 @@
 # ---
 # Using twitch-cli, fetches the video and chats (in html and json).
 #
-# Requires twitch-cli
+# Requires twitch-cli, yt-dlp (for 2025-02-17 changes)
 #
 # Usage: fetch_twitch_videos_and_chat.py <video>
 #
 # Will fetch the html and json chats as well as the stream for a video with id <video>.
 # ---
+# 2025-02-17
+# -
+# Making a slight change to the approach. Because I fetch the Twitch stream much later now, many times
+# the Twitch stream is muted, so I want to get an alternative stream and give it almost the same name
+# so the other scripts will still work in conjunction.
+#
+# This breaks the focused philosphy of these scripts, but perfect is the enemy of good, so for the
+# convenience of having this work in a chained fashion like before (e.g. cmd && cmd && cmd), a 
+# modification had to be made.
+#
+# Adding -a "alternative stream" in the format of -a name:url
+# ---
 
-import os, textwrap, getopt, sys, re, subprocess, ujson
+import os, textwrap, getopt, sys, re, subprocess, ujson, time
 from dateutil.parser import parse as dateparser
+from datetime import timedelta
+from types import SimpleNamespace
 from prettytable import PrettyTable
 
 def print_usage(msg = None):
     scriptname = os.path.basename(sys.argv[0])
     usage = textwrap.dedent("""\
             Fetches chat (html+json) and video of specified video id.
-            Usage: {script} [-h] [-n] [-c | -v] <video|video-url>
+            Usage: {script} [-h] [-n] [-c | -v] [-a name:alt-url] <video|video-url>
 
             -h : Help                            
             -n : Dry run. Don't download anything.
             -c : Do not download chats
             -v : Do not download video
+            -a : Download video from alternative stream
+                name : name of alternative url source
+                alt-url : url of alternative stream
+            
+            The name will be appended to the title of the video. So if you put "rumble"
+            as the name, the resulting filename will be title-of-video.rumble.mp4.
 
             e.g.
               {script} 12345
               {script} https://twitch.tv/videos/12345
             
             Will fetch from https://twitch.tv/videos/12345
+                            
+            Alternative stream e.g.
+              {script} -a rumble:https://rumble.com/v6lxuk1-some-video 12345
+                            
+            Will fetch video stream from https://rumble.com/v6lxuk1-some-video and 
+            chat from https://twitch.tv/videos/12345
         """.format(script = scriptname))
     
     if not msg is None:
@@ -43,14 +69,14 @@ def extract_video_id(candidate):
     matches = pattern.match(candidate)
     return matches['id'] if matches else None
 
-
 def parse_options(argv):
     results = lambda : None
     results.dryrun = False
     results.dl_chats = True
     results.dl_video = True
+    results.alt_source = False
     try:
-        opts, args = getopt.getopt(argv,"h?ncv")
+        opts, args = getopt.getopt(argv,"h?ncva:")
     except getopt.GetoptError as e:
         print_usage(e.msg)
         sys.exit(2)
@@ -64,6 +90,11 @@ def parse_options(argv):
             results.dl_chats = False
         elif opt == "-v":
             results.dl_video = False
+        elif opt == "-a":
+            results.alt_source = True
+            source = arg.split(":", 1)
+            results.alt_name = source[0]
+            results.alt_url = source[1]
 
     results.video = extract_video_id(args[0]) if args else None
 
@@ -109,7 +140,13 @@ def runner(command, dryrun = False):
     if dryrun:
         print(f"Dry-Run for: {command}")
     else:
+        print(f"Running: {command}")
+        start = time.time()
         os.system(command)
+        end = time.time()
+        duration = end - start
+        delta = timedelta(seconds=duration)
+        print(f"Elapsed time: {delta} s")
 
 def fetch_chat(metadata, dryrun = False):
     title = f"{metadata.id} [Chat] - {metadata.nicetitle} [{metadata.channel} - {metadata.date}]"
@@ -120,11 +157,22 @@ def fetch_chat(metadata, dryrun = False):
     print(f"Fetching JSON chat for video {metadata.id} as: {title}.json")
     runner(f"twitchdownloadercli chatdownload -u {metadata.id} -o \"{title}.json\" -E", dryrun)
 
-def fetch_video(metadata, dryrun = False):
+def fetch_video(metadata, alt = None, dryrun = False):
     title = f"{metadata.id} - {metadata.nicetitle} [{metadata.channel} - {metadata.date}]"
 
     print(f"Fetching video {metadata.id}")
-    runner(f"twitchdownloadercli videodownload -u {metadata.id} -o \"{title}.mp4\"", dryrun)
+    if alt is not None and vars(alt):
+        print(f"Using alternative stream [{alt.name}] {alt.url}")
+        runner(f"yt-dlp -o \"{title}.{alt.name}.mp4\" \"{alt.url}\"", dryrun)
+    else:
+        runner(f"twitchdownloadercli videodownload -u {metadata.id} -o \"{title}.mp4\"", dryrun)
+
+def use_alt(params):
+    results = SimpleNamespace()
+    if params.alt_source:
+        results.name = params.alt_name
+        results.url = params.alt_url
+    return results
 
 def main(argv):
     params = parse_options(argv)
@@ -134,6 +182,9 @@ def main(argv):
         sys.exit(1)
 
     print(f"Fetching https://twitch.tv/videos/{params.video}")
+
+    if params.alt_source:
+        print(f"Using alternative video stream [{params.alt_name}] {params.alt_url}")
 
     video = get_twitch_video_metadata(params.video)
     if video is None:
@@ -146,7 +197,7 @@ def main(argv):
         fetch_chat(video_data, params.dryrun)
 
     if params.dl_video:
-        fetch_video(video_data, params.dryrun)
+        fetch_video(video_data, use_alt(params), params.dryrun)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
